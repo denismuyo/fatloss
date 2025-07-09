@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fat Loss Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+      background: #f7f9fc;
+      color: #333;
+    }
+    h1, h2 {
+      color: #2b6cb0;
+      text-align: center;
+    }
+    label {
+      margin-top: 10px;
+      display: block;
+      font-weight: 500;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-top: 5px;
+      box-sizing: border-box;
+      font-size: 15px;
+    }
+    button {
+      background-color: #2b6cb0;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      margin-top: 20px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background-color: #1a4d8f;
+    }
+    .log-entry {
+      border-left: 6px solid #2b6cb0;
+      background: #fff;
+      padding: 15px;
+      margin-top: 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .suggestion {
+      color: #d9534f;
+      font-style: italic;
+    }
+    canvas {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏋️ 30-Day Fat Loss Tracker</h1>
+
+  <label>Day (1-30): <input type="number" id="day" min="1" max="30" /></label>
+  <label>Cardio Type:
+    <select id="cardioType">
+      <option>Treadmill</option>
+      <option>Rope</option>
+      <option>Cycling</option>
+      <option>Stairmaster</option>
+      <option>Other</option>
+    </select>
+  </label>
+  <label>Duration (minutes): <input type="number" id="duration" /></label>
+  <label>OMAD Meal: <textarea id="meal" rows="2"></textarea></label>
+  <label>Weight (lbs): <input type="number" id="weight" /></label>
+
+  <button onclick="saveEntry()">💾 Save Entry</button>
+
+  <h2>📈 Weight Progress</h2>
+  <canvas id="weightChart" width="600" height="300"></canvas>
+
+  <h2>📋 Daily Logs</h2>
+  <div id="logContainer"></div>
+
+  <script>
+    const cardioOptions = {
+      Treadmill: 10,
+      Rope: 12,
+      Cycling: 8,
+      Stairmaster: 11,
+      Other: 9,
+    };
+
+    let log = JSON.parse(localStorage.getItem("fatloss-log")) || [];
+
+    function saveEntry() {
+      const day = parseInt(document.getElementById("day").value);
+      const cardioType = document.getElementById("cardioType").value;
+      const duration = parseInt(document.getElementById("duration").value);
+      const meal = document.getElementById("meal").value.trim();
+      const weight = document.getElementById("weight").value;
+
+      if (!day || !duration || !weight || !meal) {
+        alert("Please fill all fields.");
+        return;
+      }
+
+      const caloriesBurned = cardioOptions[cardioType] * duration;
+      const suggestions = [];
+      if (caloriesBurned < 200) suggestions.push("Try extending cardio to hit 200 kcal.");
+      if (!/chicken|egg|beef|protein|shake/i.test(meal)) {
+        suggestions.push("Consider adding more protein to your OMAD meal.");
+      }
+
+      const entry = { day, cardioType, duration, caloriesBurned, meal, weight, suggestions };
+      log = log.filter((e) => e.day !== day).concat(entry).sort((a, b) => a.day - b.day);
+      localStorage.setItem("fatloss-log", JSON.stringify(log));
+
+      alert("Entry saved for Day " + day);
+      renderLogs();
+      renderChart();
+    }
+
+    function renderLogs() {
+      const container = document.getElementById("logContainer");
+      container.innerHTML = "";
+      log.forEach((entry) => {
+        const div = document.createElement("div");
+        div.className = "log-entry";
+        div.innerHTML = `
+          <strong>Day ${entry.day}</strong><br>
+          Cardio: ${entry.cardioType} for ${entry.duration} mins (${entry.caloriesBurned} kcal)<br>
+          Meal: ${entry.meal}<br>
+          Weight: ${entry.weight} lbs
+          ${entry.suggestions.length > 0 ? '<ul>' + entry.suggestions.map(s => `<li class="suggestion">${s}</li>`).join('') + '</ul>' : ''}
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function renderChart() {
+      const ctx = document.getElementById("weightChart").getContext("2d");
+      const labels = log.map(e => `Day ${e.day}`);
+      const data = log.map(e => parseFloat(e.weight));
+
+      if (window.weightChart) window.weightChart.destroy();
+      window.weightChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Weight (lbs)',
+            data,
+            borderColor: '#2b6cb0',
+            backgroundColor: 'rgba(43, 108, 176, 0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: false }
+          }
+        }
+      });
+    }
+
+    renderLogs();
+    renderChart();
+  </script>
+</body>
+</html>
